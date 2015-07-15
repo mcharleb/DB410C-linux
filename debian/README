@@ -1,0 +1,24 @@
+Create a Debian rootfs for DragonBoard 410C
+
+This uses qemu to handle the second-stage of the debootstrap and uses
+qemu-debootstrap called from grml-debootstrap. 
+
+You will need to have these packages installed:
+
+	sudo apt-get install wget grml-debootstrap android-tools android-tools-fsutils
+
+1. Run make. That will create debian-rootfs.img
+
+2. Boot the DB410c with the Linaro Ubuntu release from the SD card installer. 
+   This will partition the eMMC appropriately. These instructions assume you have priviously run Linaro Ubuntu
+   based release on the board.
+
+3. Use the recovery disk image to boot the DB410C into fastboot. Make sure the dip switch for SD Boot is ON.
+
+4. Write the images to the board: make flashall
+
+5. Pop out the SD card and reboot
+
+4. Login (root, root)
+
+5. Start the network time server: timedatectl set-ntp true
