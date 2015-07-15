@@ -1,0 +1,4 @@
+locales console-data console-common
+bzip2 file less lsof most resolvconf screen ssh strace sysfsutils usbutils vim 
+rsync
+lsb-release
