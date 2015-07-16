@@ -40,13 +40,14 @@
 
 TOPDIR:=`pwd`
 
-LINAROIMG:=linaro-vivid-developer-qcom-snapdragon-arm64-20150618-47.img
-
-DEBIANISO:=debian-8.1.0-arm64-netinst.iso
-
-BOOTIMG:=boot-linaro-vivid-qcom-snapdragon-arm64-20150618-47.img
-
 DEPS:=wget grml-debootstrap qemu-debootstrap img2simg
+SHARED:=../shared
+DEBSDIR:=$(SHARED)/debs
+IMGDIR:=$(SHARED)/images
+LINAROIMG:=linaro-vivid-developer-qcom-snapdragon-arm64-20150618-47.img
+LINARORAWIMG:=$(LINAROIMG).raw
+DEBIANISO:=debian-8.1.0-arm64-netinst.iso
+BOOTIMG:=boot-linaro-vivid-qcom-snapdragon-arm64-20150618-47.img
 
 all: debian-rootfs.img
 
@@ -58,10 +59,13 @@ check-deps:
 install-deps:
 	sudo apt-get install wget grml-debootstrap qemu-user-static android-tools-fsutils
 
-$(LINAROIMG).raw:
+
+$(LINAROIMG):
 	wget https://builds.96boards.org/releases/dragonboard410c/linaro/ubuntu/15.06/$(LINAROIMG).gz
 	gzip -d $(LINAROIMG).gz
-	simg2img $(LINAROIMG) $(LINAROIMG).raw
+
+$(IMGDIR)/$(LINARORAWIMG): $(LINAROIMG)
+	simg2img $< $@
 
 debian-root:
 	truncate -s 3G $@
@@ -70,38 +74,36 @@ debian-root:
 $(DEBIANISO):
 	wget http://cdimage.debian.org/debian-cd/8.1.0/arm64/iso-cd/$(DEBIANISO)
 
-debs:
-	mkdir -p debs
+$(DEBSDIR)/linux-headers-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb:
+	cd $(DEBSDIR) && wget https://builds.96boards.org/releases/dragonboard410c/linaro/ubuntu/15.06/linux-headers-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb
 
-debs/linux-headers-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb: debs
-	cd debs && wget https://builds.96boards.org/releases/dragonboard410c/linaro/ubuntu/15.06/linux-headers-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb
+$(DEBSDIR)/linux-image-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb:
+	cd $(DEBSDIR) && wget https://builds.96boards.org/releases/dragonboard410c/linaro/ubuntu/15.06/linux-image-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb
 
-debs/linux-image-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb: debs
-	cd debs && wget https://builds.96boards.org/releases/dragonboard410c/linaro/ubuntu/15.06/linux-image-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb
+$(DEBSDIR)/linux-libc-dev_4.0.0-linaro-lt-qcom-1_arm64.deb:
+	cd $(DEBSDIR) && wget https://builds.96boards.org/releases/dragonboard410c/linaro/ubuntu/15.06/linux-libc-dev_4.0.0-linaro-lt-qcom-1_arm64.deb
 
-debs/linux-libc-dev_4.0.0-linaro-lt-qcom-1_arm64.deb: debs
-	cd debs && wget https://builds.96boards.org/releases/dragonboard410c/linaro/ubuntu/15.06/linux-libc-dev_4.0.0-linaro-lt-qcom-1_arm64.deb
-
-debian-root.complete: $(DEBIANISO) debian-root $(LINAROIMG).raw \
-	debs/linux-headers-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb \
-	debs/linux-image-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb \
-	debs/linux-libc-dev_4.0.0-linaro-lt-qcom-1_arm64.deb
-	sudo debootstrap/wrapper.sh $(TOPDIR) $(LINAROIMG).raw $(DEBIANISO) debs
+debian-root.complete: $(DEBIANISO) debian-root $(IMGDIR)/$(LINARORAWIMG) \
+	$(DEBSDIR)/linux-headers-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb \
+	$(DEBSDIR)/linux-image-4.0.0-linaro-lt-qcom_4.0.0-linaro-lt-qcom-1_arm64.deb \
+	$(DEBSDIR)/linux-libc-dev_4.0.0-linaro-lt-qcom-1_arm64.deb
+	sudo debootstrap/wrapper.sh $(TOPDIR) $(IMGDIR)/$(LINARORAWIMG) $(DEBIANISO) $(DEBSDIR)
 	touch $@
 
 debian-rootfs.img: debian-root.complete
 	img2simg debian-root $@
 
-$(BOOTIMG):
+$(IMGDIR)/$(BOOTIMG):
 	wget https://builds.96boards.org/releases/dragonboard410c/linaro/ubuntu/15.06/$(BOOTIMG).gz
 	gzip -d $(BOOTIMG).gz
+	mv $(BOOTIMG) $(IMGDIR)/$(BOOTIMG)
 
 flashall: $(BOOTIMG)
-	sudo fastboot flash boot $(BOOTIMG)
+	sudo fastboot flash boot $(IMGDIR)/$(BOOTIMG)
 	sudo fastboot flash rootfs debian-rootfs.img
 
 clean:
-	rm -f debian-root.complete debian-rootfs.img debian-root $(LINAROIMG).raw $(LINAROIMG).gz $(LINAROIMG) $(BOOTIMG)
+	rm -f debian-root.complete debian-rootfs.img debian-root $(LINAROIMG).gz $(LINAROIMG)
 	if [ -d debian_root_loop ]; then rmdir debian_root_loop; fi
 	if [ -d linaro_root_loop ]; then rmdir linaro_root_loop; fi
 	if [ -d debian-iso ]; then rmdir debian-iso; fi

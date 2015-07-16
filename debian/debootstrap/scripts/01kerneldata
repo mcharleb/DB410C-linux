@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ -z "${MNTPOINT}" ]; then
+echo "Error MNTPOINT not defined"
+exit 1
+fi
+
+DEBTMP=/tmp/linaro_debs
+TOPDIR=${MNTPOINT}/../..
+
+echo "copying deb packages to ${MNTPOINT}/${DEBTMP}"
+mkdir -p ${MNTPOINT}/${DEBTMP}
+cp ${TOPDIR}/shared/debs/*.deb ${MNTPOINT}/${DEBTMP}
+sudo chroot ${MNTPOINT} dpkg -i /tmp/linaro_debs/*.deb
+#rm -rf ${MNTPOINT}/${DEBTMP}
+
